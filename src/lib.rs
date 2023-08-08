@@ -57,6 +57,32 @@ pub unsafe fn init(ty: ApplicationType) -> Result<Context, InitError> {
     Ok(Context { live: AtomicBool::new(true) })
 }
 
+/// Returns where the OpenVR runtime is installed.
+///
+/// This can be called without an active Context.
+pub fn get_runtime_path() -> Option<CString> {
+    let mut buf = [0u8; 1024];
+    let mut req = 0;
+
+    //  This does not like being called with NULL/0, so get_string will not work
+    let result = unsafe { sys::VR_GetRuntimePath(buf.as_mut_ptr() as *mut i8, buf.len() as u32, &mut req as *mut u32) };
+    if result && (1..=buf.len() as u32).contains(&req) {
+        let bytes = Vec::from(&buf[..req as usize-1]);
+        Some(unsafe { CString::from_vec_unchecked(bytes) })
+    } else {
+        None
+    }
+}
+
+/// Returns true if there is an HMD attached.
+///
+/// This check is as lightweight as possible and can be called without an active Context. It
+/// should be used when an application wants to know if initializing VR is a possibility but isn't
+/// ready to take that step yet.
+pub fn is_hmd_present() -> bool {
+    unsafe { sys::VR_IsHmdPresent() }
+}
+
 pub struct System(&'static sys::VR_IVRSystem_FnTable);
 pub struct Compositor(&'static sys::VR_IVRCompositor_FnTable);
 pub struct RenderModels(&'static sys::VR_IVRRenderModels_FnTable);
@@ -114,7 +140,7 @@ impl Context {
     /// attempting to free graphics resources.
     ///
     /// No calls to other OpenVR methods may be made after this has been called unless a new `Context` is first
-   
+
     /// constructed.
     pub unsafe fn shutdown(&self) {
         if self.live.swap(false, Ordering::Acquire) {
