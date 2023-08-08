@@ -67,8 +67,8 @@ pub fn get_runtime_path() -> Option<CString> {
     //  This does not like being called with NULL/0, so get_string will not work
     let result = unsafe { sys::VR_GetRuntimePath(buf.as_mut_ptr() as *mut i8, buf.len() as u32, &mut req as *mut u32) };
     if result && (1..=buf.len() as u32).contains(&req) {
-        let bytes = Vec::from(&buf[..req as usize-1]);
-        Some(unsafe { CString::from_vec_unchecked(bytes) })
+        let bytes = Vec::from(&buf[..req as usize]);
+        Some(unsafe { CString::from_vec_with_nul_unchecked(bytes) })
     } else {
         None
     }
